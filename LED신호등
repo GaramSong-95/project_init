@@ -1,0 +1,145 @@
+#define _CRT_SECURE_NO_WARNINGS
+#include <stdio.h>
+#include <string.h>
+
+
+
+#define buttonPIN     PINA
+#define ledPORT       PORTF
+#define buttonDDR     DDRA
+#define buttonPORT    PORTA
+#define ledDDR        DDRF
+
+enum {automode,manualmode};
+enum {redgreen,redyellow,greenred,yellowred};
+	
+uint8_t colorstate;
+uint8_t leddata;
+
+void autofunction();
+void manualfunction();
+void redgreen_mode();
+void redyellow_mode();
+void greenred_mode();
+void yellowred_mode();
+
+int main(void)
+{
+	buttonDDR&=((1<<0)|(1<<1)|(1<<2));
+	ledDDR=0xff;
+	buttonPORT=0xff;	
+	uint8_t machinestate =automode;
+	
+	
+	while(1)
+	{
+		
+	if(!(buttonPIN&(1<<automode)))
+	{
+		machinestate=automode;
+		
+	}
+	else if(!(buttonPIN&(1<<manualmode)))
+	{
+		machinestate=manualmode;
+		
+	}
+	
+	switch(machinestate)
+	{
+		case automode:
+		autofunction();
+		break;
+		case manualmode:
+		manualfunction();
+		break;
+		
+	}	
+	}
+	
+}
+
+
+void autofunction()
+{
+	switch(colorstate)
+	{
+		case redgreen:
+		redgreen_mode();
+		_delay_ms(3000);
+		colorstate=redyellow;
+		break;
+		case redyellow:
+		redyellow_mode();
+		_delay_ms(1000);
+		colorstate=greenred;
+		break;
+		case greenred:
+		greenred_mode();
+		_delay_ms(3000);
+		colorstate=yellowred;
+		break;
+		case yellowred:
+		yellowred_mode();
+		_delay_ms(1000);
+		colorstate=redgreen;
+		break;
+	}
+	
+}
+void manualfunction()
+{
+	switch(colorstate)
+	{
+		case redgreen:
+		redgreen_mode();
+		if(!(buttonPIN&(1<<2)))
+		{
+			colorstate=redyellow;
+		}
+		break;
+		case redyellow:
+		redyellow_mode();
+		if(!(buttonPIN&(1<<2)))
+		{
+			colorstate=greenred;
+		}
+		break;
+		case greenred:
+		greenred_mode();
+		if(!(buttonPIN&(1<<2)))
+		{
+			colorstate=yellowred;
+		}
+		break;
+		case yellowred:
+		yellowred_mode();
+		if(!(buttonPIN&(1<<2)))
+		{
+			colorstate=redgreen;
+		}
+		break;
+	}
+	
+}
+
+void redgreen_mode()
+{
+	leddata=((1<<2)|(1<<3));
+	ledPORT=leddata;
+}
+void redyellow_mode()
+{
+	leddata=((1<<2)|(1<<4));
+	ledPORT=leddata;
+}
+void greenred_mode()
+{
+	leddata=((1<<0)|(1<<5));
+	ledPORT=leddata;
+}
+void yellowred_mode()
+{
+	leddata=((1<<1)|(1<<5));
+	ledPORT=leddata;
+}
