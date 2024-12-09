@@ -1,0 +1,161 @@
+#include "device_driver.h"
+#include <stdlib.h>
+#include <stdio.h>
+
+#define LCDW			(320)
+#define LCDH			(240)
+#define X_MIN	 		(0)
+#define X_MAX	 		(LCDW - 1)
+#define Y_MIN	 		(0)
+#define Y_MAX	 		(LCDH - 1)
+
+#define TIMER_PERIOD	(10)
+#define frog_size  15
+
+static unsigned short color[] = {RED, YELLOW, GREEN, BLUE, WHITE, BLACK};
+
+extern volatile int TIM4_expired;
+extern volatile int Jog_key_in;
+extern volatile int Jog_key;
+
+void Main(void)
+{
+	Uart_Printf("Game Project\n");  //printf대신에 사용
+
+	Lcd_Init();
+	Jog_Poll_Init();
+	Jog_ISR_Enable(1);
+	Uart1_RX_Interrupt_Enable(1);
+	Lcd_Clr_Screen(); //화면색깔
+
+	int frog_move = 5;
+
+	int car_box=20;
+
+	int frog_pos_x = X_MAX-frog_size, frog_pos_y = (LCDH / 2) - 20; // 개구리 초기 위치
+	int car_pos_x = 0, car_pos_y = Y_MIN; // 자동차의 초기위치
+
+	
+	int car_color = 1;
+	int tick_count = 0;
+
+	int score = 0;
+	
+
+
+	TIM4_Repeat_Interrupt_Enable(1, TIMER_PERIOD*10);  // 0이면 사용안함, 100ms마다 TIM4_expire이 1씩 바뀜
+	Lcd_Draw_Box(frog_pos_x, frog_pos_y, frog_size, frog_size, color[0]); // x좌표 y좌표 크기 색깔 그리기 함수 크기를 늘려서 배경색을 바꿀 수 있음
+	Lcd_Draw_Box(car_pos_x, car_pos_y, 20, 240, color[0]);
+
+int car_pos_x2 = 0, car_pos_y2 = rand()%240;
+int car_pos_x3 = 0, car_pos_y3 = car_pos_y2;
+
+	for(;;)
+	{
+		if(Jog_key_in) // 키가 눌린 상태를 확인
+		{
+			// 위아래 방향키를 눌렀을 때 frog 움직임.
+			Uart_Printf("KEY = %d\n", Jog_key);
+			if(Jog_key==0)
+			{
+			Lcd_Draw_Box(frog_pos_x, frog_pos_y,frog_size, frog_size, color[5]);
+			frog_pos_y -=frog_move;
+			Lcd_Draw_Box(frog_pos_x, frog_pos_y, frog_size, frog_size, color[3]); //색깔을 바꾸고 있음 
+			
+			}
+			else if(Jog_key==1)
+			{
+			
+			Lcd_Draw_Box(frog_pos_x, frog_pos_y,frog_size, frog_size, color[5]);
+			frog_pos_y +=frog_move;
+			Lcd_Draw_Box(frog_pos_x, frog_pos_y, frog_size, frog_size, color[3]);
+			}
+			else if(Jog_key==2)
+			{
+			
+			Lcd_Draw_Box(frog_pos_x, frog_pos_y,frog_size, frog_size, color[5]);
+			frog_pos_x -=frog_move;
+			Lcd_Draw_Box(frog_pos_x, frog_pos_y, frog_size, frog_size, color[3]);
+			}
+			else if(Jog_key==3)
+			{
+			
+			Lcd_Draw_Box(frog_pos_x, frog_pos_y,frog_size, frog_size, color[5]);
+			frog_pos_x +=frog_move;
+			Lcd_Draw_Box(frog_pos_x, frog_pos_y, frog_size, frog_size, color[3]);
+			}
+			Jog_key_in = 0;
+		}
+
+		Lcd_Draw_Box(frog_pos_x, frog_pos_y, frog_size, frog_size, color[3]);
+		
+
+
+
+
+        // 충돌 검사   
+        
+		if(collision_f(frog_pos_x,car_pos_x2,frog_pos_y,car_pos_y2)==0)
+		{
+			
+        Uart_Printf("SCORE = %d\n", score);
+		break;
+		}
+
+		if(TIM4_expired) // 
+		{
+			tick_count = (tick_count + 1) % 10;
+
+			
+           
+			
+			if(tick_count == 0) // 1초마다 색깔을 바꾸고 있는 상황
+			{
+
+				// 다음스테이지 초기화
+				if(car_pos_x>300)
+				{
+					
+					Lcd_Draw_Box(car_pos_x, car_pos_y, 20, 240, color[5]);
+					Lcd_Draw_Box(car_pos_x2, car_pos_y2, car_box, car_box, color[5]);
+					Lcd_Draw_Box(frog_pos_x, frog_pos_y, frog_size, frog_size, color[5]);
+					score += 10;
+					car_pos_x=0;
+					car_pos_x2=0;
+					car_pos_y2=rand()%240;
+					frog_pos_x = X_MAX-frog_size, frog_pos_y = (LCDH / 2) - 20; 
+					
+				}
+				//막대기 움직임
+				Lcd_Draw_Box(car_pos_x, car_pos_y, 20, 240, color[5]);
+				car_pos_x += 10;
+				Lcd_Draw_Box(car_pos_x, car_pos_y, 20, 240, color[car_color]);
+
+
+                // 공백 움직임
+
+				//Lcd_Draw_Box(car_pos_x2, car_pos_y2, car_box, car_box, color[5]);
+				car_pos_x2 += 10;
+				Lcd_Draw_Box(car_pos_x2, car_pos_y2, car_box, car_box, color[5]);
+
+			}
+			TIM4_expired = 0;  //클리어 해줘야 한다.
+		}
+	}
+}
+
+int collision_f(int x1,int x2,int y1,int y2)
+{
+	if((x1<x2+22)&&(x1>x2-15))
+	      {
+					if(y1<y2)
+					{
+						return 0;
+					}
+					else if(y1>y2+5)
+					return 0;
+		  }
+    return 1;
+
+}
+
